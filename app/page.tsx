@@ -166,8 +166,12 @@ export default function AgriculturaPage() {
 
     ws.onopen = () => {
       console.log("✅ Conectado al servidor WebSocket");
-      ws.send(JSON.stringify({ type: "client-msg", msg: "Conectado desde React" }));
-      console.log("mensaje enviado")
+      if(ws.readyState === WebSocket.OPEN) {
+        ws.send(
+          JSON.stringify({ type: "client-msg", msg: "Mensaje desde React 🚀" })
+        );
+        console.log("📩 Mensaje enviado");
+      }
     };
 
     ws.onmessage = (event) => {

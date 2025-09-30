@@ -37,6 +37,14 @@ import {
   Download,
   Calendar,
 } from "lucide-react"
+import { set } from "date-fns"
+
+
+interface DataMessage {
+  type: string
+  msg: string
+  data: any
+}
 
 
 
@@ -71,98 +79,34 @@ export default function AgriculturaPage() {
     temperature: 24,
     light: 750,
     waterConsumption: 2.5,
-    pumpStatus: false,
+    pumpStatus: false, // Inicialmente, la bomba está apagada
     timestamp: new Date(),
   })
 
   const [historicalData, setHistoricalData] = useState<HistoricalData[]>([])
   const [isSimulating, setIsSimulating] = useState(false)
-  const [pumpPower, setPumpPower] = useState([75])
-  const [humidityThreshold, setHumidityThreshold] = useState([40])
-  const [manualPump, setManualPump] = useState(false)
+  const [pumpPower, setPumpPower] = useState([75])  //Este es el porcentaje de potencia de la bomba
+  const [humidityThreshold, setHumidityThreshold] = useState([40]) //Este es el umbral de humedad
+  const [manualPump, setManualPump] = useState(false) //Esta es la variable para el modo manual de la bomba
 
   
 
-  // Initialize historical data
-  useEffect(() => {
-    const initialData: HistoricalData[] = []
-    const now = new Date()
-
-    for (let i = 23; i >= 0; i--) {
-      const timestamp = new Date(now.getTime() - i * 60 * 60 * 1000)
-      initialData.push({
-        time: timestamp.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }),
-        humidity: 40 + Math.random() * 40,
-        temperature: 18 + Math.random() * 12,
-        light: 200 + Math.random() * 600,
-        waterConsumption: Math.random() * 5,
-        pumpStatus: Math.random() > 0.7 ? 1 : 0,
-        timestamp,
-      })
-    }
-
-    setHistoricalData(initialData)
-  }, [])
-
+  
   // Simulation logic
   useEffect(() => {
     if (!isSimulating) return
 
-    const interval = setInterval(() => {
-      setSensorData((prev) => {
-        let newHumidity = prev.humidity
-        let newPumpStatus = prev.pumpStatus
+    socket?.send(
+      JSON.stringify({ type: "client-msg", msg: "Iniciar simulacion", data: {isSimulating, humidityThreshold, manualPump} })
+    );
 
-        // Simulate automatic irrigation
-        if (newHumidity < humidityThreshold[0] && !newPumpStatus) {
-          newPumpStatus = true
-        } else if (newHumidity > 80 && newPumpStatus) {
-          newPumpStatus = false
-        }
-
-        // Update humidity based on pump status
-        if (newPumpStatus) {
-          newHumidity = Math.min(100, newHumidity + Math.random() * 3)
-        } else {
-          newHumidity = Math.max(0, newHumidity - Math.random() * 2)
-        }
-
-        const newData = {
-          humidity: Math.round(newHumidity),
-          temperature: 20 + Math.random() * 10,
-          light: 300 + Math.random() * 700,
-          waterConsumption: prev.waterConsumption + (newPumpStatus ? 0.1 : 0),
-          pumpStatus: newPumpStatus || manualPump,
-          timestamp: new Date(),
-        }
-
-        // Add to historical data
-        setHistoricalData((prevHistory) => {
-          const newHistoricalPoint: HistoricalData = {
-            time: newData.timestamp.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }),
-            humidity: newData.humidity,
-            temperature: newData.temperature,
-            light: newData.light,
-            waterConsumption: newData.waterConsumption,
-            pumpStatus: newData.pumpStatus ? 1 : 0,
-            timestamp: newData.timestamp,
-          }
-
-          const updated = [...prevHistory, newHistoricalPoint]
-          return updated.slice(-24) // Keep last 24 hours
-        })
-
-        return newData
-      })
-    }, 2000)
-
-    return () => clearInterval(interval)
-  }, [isSimulating, humidityThreshold, manualPump])
+    
+  }, [isSimulating])
 
 
   useEffect(() => {
     // 👇 Conéctate al servidor (usa wss si está en HTTPS)
-    const ws = new WebSocket("wss://servidor-ws-conexionesp32.onrender.com");
+    const ws = new WebSocket("wss://servidorconexionesp32.onrender.com");
 
     ws.onopen = () => {
       console.log("✅ Conectado al servidor WebSocket");
@@ -175,13 +119,45 @@ export default function AgriculturaPage() {
     };
 
     ws.onmessage = (event) => {
+      
       try {
-        const data = JSON.parse(event.data);
-        console.log("📩 Mensaje recibido:", data);
-        setMessages(prev => [...prev, data] as any);
-      } catch (err) {
-        console.error("⚠️ Error parseando mensaje:", err);
-      }
+      const data = JSON.parse(event.data);
+      console.log("📩 Datos recibidos del servidor:", data);
+
+      setMessages(prev => [...prev, data] as any);
+
+      console.log("📩 Datos recibidos del servidor:", messages);
+
+      // Actualizar sensorData directamente con lo que envía el servidor
+      const newData: SensorData = {
+        humidity: data.humidity,
+        temperature: 1,
+        light: 2,
+        waterConsumption: 3,
+        pumpStatus: data.pumpStatus,
+        timestamp: new Date(data.timestamp),
+      };
+      setSensorData(newData);
+
+      // Guardar en historial
+      setHistoricalData((prevHistory) => {
+        const newHistoricalPoint: HistoricalData = {
+          time: newData.timestamp.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }),
+          humidity: newData.humidity,
+          temperature: newData.temperature,
+          light: newData.light,
+          waterConsumption: newData.waterConsumption,
+          pumpStatus: newData.pumpStatus ? 1 : 0,
+          timestamp: newData.timestamp,
+        };
+
+        const updated = [...prevHistory, newHistoricalPoint];
+        return updated.slice(-24); // mantener los últimos 24 puntos
+      });
+
+    } catch (err) {
+      console.error("⚠️ Error parseando mensaje:", err);
+    }
     };
 
     ws.onclose = () => {
@@ -207,7 +183,8 @@ export default function AgriculturaPage() {
       console.log("⚠️ El socket no está abierto");
     }
   };
-  
+
+
   
 
   const getStatusColor = (value: number, optimal: [number, number]) => {
@@ -661,12 +638,12 @@ export default function AgriculturaPage() {
                             </TableCell>
                             <TableCell>
                               <span className={getStatusColor(record.humidity, [40, 80])}>
-                                {record.humidity.toFixed(1)}%
+                                {record.humidity?.toFixed(1)}%
                               </span>
                             </TableCell>
                             <TableCell>
                               <span className={getStatusColor(record.temperature, [18, 28])}>
-                                {record.temperature.toFixed(1)}°C
+                                {record.temperature?.toFixed(1)}°C
                               </span>
                             </TableCell>
                             <TableCell>

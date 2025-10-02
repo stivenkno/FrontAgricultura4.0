@@ -48,6 +48,7 @@ interface DataMessage {
 
 
 
+
 // Simulated sensor data
 interface SensorData {
   humidity: number
@@ -65,20 +66,20 @@ interface HistoricalData {
   temperature: number
   light: number
   waterConsumption: number
-  pumpStatus: number
+  pumpStatus: boolean
   timestamp: Date
 }
 
 export default function AgriculturaPage() {
    const [messages, setMessages] = useState([]);
-  const [socket, setSocket] = useState<WebSocket | null>(null);
+   const [socket, setSocket] = useState<WebSocket | null>(null);
 
   
   const [sensorData, setSensorData] = useState<SensorData>({
-    humidity: 65,
-    temperature: 24,
-    light: 750,
-    waterConsumption: 2.5,
+    humidity: 0,
+    temperature: 0,
+    light: 0,
+    waterConsumption: 0,
     pumpStatus: false, // Inicialmente, la bomba está apagada
     timestamp: new Date(),
   })
@@ -96,9 +97,16 @@ export default function AgriculturaPage() {
   useEffect(() => {
     if (!isSimulating) return
 
+    console.log(socket)
+    console.log(sensorData)
+
     socket?.send(
-      JSON.stringify({ type: "client-msg", msg: "Iniciar simulacion", data: {isSimulating, humidityThreshold, manualPump} })
-    );
+    JSON.stringify({ type: "client-msg", msg: "iniciar simulacion", data: {
+      humidityThreshold: humidityThreshold,
+      pumpPower: pumpPower,
+      manualPump: manualPump
+    } })
+    )
 
     
   }, [isSimulating])
@@ -111,9 +119,8 @@ export default function AgriculturaPage() {
     ws.onopen = () => {
       console.log("✅ Conectado al servidor WebSocket");
       if(ws.readyState === WebSocket.OPEN) {
-        ws.send(
-          JSON.stringify({ type: "client-msg", msg: "Mensaje desde React 🚀" })
-        );
+        ws.send(JSON.stringify({ type: "identify", role: "react" }));
+
         console.log("📩 Mensaje enviado");
       }
     };
@@ -122,20 +129,19 @@ export default function AgriculturaPage() {
       
       try {
       const data = JSON.parse(event.data);
-      console.log("📩 Datos recibidos del servidor:", data);
 
       setMessages(prev => [...prev, data] as any);
-
-      console.log("📩 Datos recibidos del servidor:", messages);
+      console.log(historicalData)
+      console.log("📩 Datos recibidos del servidor:", data);
 
       // Actualizar sensorData directamente con lo que envía el servidor
       const newData: SensorData = {
-        humidity: data.humidity,
-        temperature: 1,
-        light: 2,
-        waterConsumption: 3,
-        pumpStatus: data.pumpStatus,
-        timestamp: new Date(data.timestamp),
+        humidity: data.data.humidity,
+        temperature: sensorData.temperature,
+        light: sensorData.light,
+        waterConsumption: sensorData.waterConsumption,
+        pumpStatus: data.data.pumpStatus,
+        timestamp: new Date(),
       };
       setSensorData(newData);
 
@@ -147,11 +153,13 @@ export default function AgriculturaPage() {
           temperature: newData.temperature,
           light: newData.light,
           waterConsumption: newData.waterConsumption,
-          pumpStatus: newData.pumpStatus ? 1 : 0,
+          pumpStatus: newData.pumpStatus ? true : false,
           timestamp: newData.timestamp,
         };
 
         const updated = [...prevHistory, newHistoricalPoint];
+        console.log(historicalData)
+        console.log(updated)
         return updated.slice(-24); // mantener los últimos 24 puntos
       });
 
@@ -654,12 +662,12 @@ export default function AgriculturaPage() {
                             <TableCell>{record.waterConsumption.toFixed(2)}L</TableCell>
                             <TableCell>
                               <Badge
-                                variant={record.pumpStatus === 1 ? "default" : "secondary"}
+                                variant={record.pumpStatus === true ? "default" : "secondary"}
                                 className={
-                                  record.pumpStatus === 1 ? "bg-green-500/20 text-green-400 border-green-500/30" : ""
+                                  record.pumpStatus ===  true ? "bg-green-500/20 text-green-400 border-green-500/30" : ""
                                 }
                               >
-                                {record.pumpStatus === 1 ? "ON" : "OFF"}
+                                {record.pumpStatus === true ? "ON" : "OFF"}
                               </Badge>
                             </TableCell>
                           </TableRow>

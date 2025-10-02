@@ -94,22 +94,31 @@ export default function AgriculturaPage() {
 
   
   // Simulation logic
-  useEffect(() => {
-    if (!isSimulating) return
-
-    console.log(socket)
-    console.log(sensorData)
-
+useEffect(() => {
+  if (isSimulating) {
+    // ✅ Enviar iniciar simulación
     socket?.send(
-    JSON.stringify({ type: "client-msg", msg: "iniciar simulacion", data: {
-      humidityThreshold: humidityThreshold,
-      pumpPower: pumpPower,
-      manualPump: manualPump
-    } })
+      JSON.stringify({
+        type: "client-msg",
+        msg: "iniciar simulacion",
+        data: {
+          humidityThreshold: humidityThreshold,
+          pumpPower: pumpPower,
+          manualPump: manualPump,
+        },
+      })
     )
+  } else {
+    // 🛑 Enviar detener simulación
+    socket?.send(
+      JSON.stringify({
+        type: "client-msg",
+        msg: "detener simulacion",
+      })
+    )
+  }
+}, [isSimulating])
 
-    
-  }, [isSimulating])
 
 
   useEffect(() => {

@@ -221,19 +221,6 @@ useEffect(() => {
 
 
 
-  const enviarMensaje = () => {
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(
-        JSON.stringify({ type: "client-msg", msg: "Mensaje desde React 🚀" })
-      );
-    } else {
-      console.log("⚠️ El socket no está abierto");
-    }
-  };
-
-
-  
-
   const getStatusColor = (value: number, optimal: [number, number]) => {
     if (value >= optimal[0] && value <= optimal[1]) return "text-green-500"
     if (value < optimal[0] * 0.8 || value > optimal[1] * 1.2) return "text-red-500"

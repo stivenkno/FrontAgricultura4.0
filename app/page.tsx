@@ -1,14 +1,34 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Progress } from "@/components/ui/progress"
-import { Slider } from "@/components/ui/slider"
-import { Switch } from "@/components/ui/switch"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useState, useEffect } from "react";
+import {
+  Cpu, CircuitBoard,  Grid, Waves, Minus, BatteryFull, 
+  Wifi, Globe, Server,  Code2, UploadCloud, Cloud, Globe2,
+  Code, FileCode, Layout, Type, Paintbrush, BarChart3, Smartphone,
+  Sparkles, Droplet, History, Bell
+} from "lucide-react";
+
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   LineChart,
   Line,
@@ -20,7 +40,7 @@ import {
   ResponsiveContainer,
   AreaChart,
   Area,
-} from "recharts"
+} from "recharts";
 import {
   Droplets,
   Thermometer,
@@ -36,46 +56,51 @@ import {
   Activity,
   Download,
   Calendar,
-} from "lucide-react"
-import { set } from "date-fns"
-import { da } from "date-fns/locale"
+  Clock,
+  Moon,
+} from "lucide-react";
 
+import { useTheme } from "next-themes";
 
 interface DataMessage {
-  type: string
-  msg: string
-  data: any
+  type: string;
+  msg: string;
+  data: any;
 }
-
-
-
 
 // Simulated sensor data
 interface SensorData {
-  humidity: number
-  temperature: number
-  light: number
-  waterConsumption: number
-  pumpStatus: boolean
-  timestamp: Date
+  humidity: number;
+  temperature: number;
+  light: number;
+  waterConsumption: number;
+  pumpStatus: boolean;
+  timestamp: Date;
 }
 
 // Historical data point
 interface HistoricalData {
-  time: string
-  humidity: number
-  temperature: number
-  light: number
-  waterConsumption: number
-  pumpStatus: boolean
-  timestamp: Date
+  time: string;
+  humidity: number;
+  temperature: number;
+  light: number;
+  waterConsumption: number;
+  pumpStatus: boolean;
+  timestamp: Date;
 }
 
 export default function AgriculturaPage() {
-   const [messages, setMessages] = useState([]);
-   const [socket, setSocket] = useState<WebSocket | null>(null);
+  const { theme, setTheme } = useTheme();
 
-  
+  const [messages, setMessages] = useState([]);
+  const [socket, setSocket] = useState<WebSocket | null>(null);
+
+  const [historicalData, setHistoricalData] = useState<HistoricalData[]>([]);
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [pumpPower, setPumpPower] = useState([75]); //Este es el porcentaje de potencia de la bomba
+  const [humidityThreshold, setHumidityThreshold] = useState([40]); //Este es el umbral de humedad
+  const [manualPump, setManualPump] = useState(false); //Esta es la variable para el modo manual de la bomba
+
   const [sensorData, setSensorData] = useState<SensorData>({
     humidity: 0,
     temperature: 0,
@@ -83,70 +108,61 @@ export default function AgriculturaPage() {
     waterConsumption: 0,
     pumpStatus: false, // Inicialmente, la bomba está apagada
     timestamp: new Date(),
-  })
-
-  const [historicalData, setHistoricalData] = useState<HistoricalData[]>([])
-  const [isSimulating, setIsSimulating] = useState(false)
-  const [pumpPower, setPumpPower] = useState([75])  //Este es el porcentaje de potencia de la bomba
-  const [humidityThreshold, setHumidityThreshold] = useState([40]) //Este es el umbral de humedad
-  const [manualPump, setManualPump] = useState(false) //Esta es la variable para el modo manual de la bomba
-
-  
-
-  
-  // Simulation logic
-useEffect(() => {
-
-  fetch("https://api.open-meteo.com/v1/forecast?latitude=4.5339&longitude=-75.6811&current=temperature_2m,cloudcover,shortwave_radiation")
-  .then(res => res.json())
-  .then(data => {
-    console.log("Temperatura:", data.current.temperature_2m, "°C");
-    sensorData.temperature = data.current.temperature_2m
-    console.log("Nubosidad:", data.current.cloudcover, "%");
-   
-    console.log("Radiación solar:", data.current.shortwave_radiation, "W/m²");
-     sensorData.light = data.current.shortwave_radiation
   });
 
-  if (isSimulating) {
-    // ✅ Enviar iniciar simulación
-    socket?.send(
-      JSON.stringify({
-        type: "client-msg",
-        msg: "iniciar simulacion",
-        data: {
-          humidityThreshold: humidityThreshold,
-          pumpPower: pumpPower,
-          manualPump: manualPump,
-        },
-      })
+  // Simulation logic
+  useEffect(() => {
+    fetch(
+      "https://api.open-meteo.com/v1/forecast?latitude=4.5339&longitude=-75.6811&current=temperature_2m,cloudcover,shortwave_radiation"
     )
-  } else {
-    // 🛑 Enviar detener simulación
-    socket?.send(
-      JSON.stringify({
-        type: "client-msg",
-        msg: "detener simulacion",
-        data: {
-          humidityThreshold: humidityThreshold,
-          pumpPower: pumpPower,
-          manualPump: false,
-        },
-      })
-    )
+      .then((res) => res.json())
+      .then((data) => {
+        console.log("Temperatura:", data.current.temperature_2m, "°C");
+        sensorData.temperature = data.current.temperature_2m;
+        console.log("Nubosidad:", data.current.cloudcover, "%");
 
-    
-    
-  }
-  setSensorData({
-    ...sensorData,
-    pumpStatus:false
-  })
- 
-  console.log("🛑 Simulación detenida");
-}, [isSimulating])
+        console.log(
+          "Radiación solar:",
+          data.current.shortwave_radiation,
+          "W/m²"
+        );
+        sensorData.light = data.current.shortwave_radiation;
+      });
 
+    if (isSimulating) {
+      // ✅ Enviar iniciar simulación
+      socket?.send(
+        JSON.stringify({
+          type: "client-msg",
+          msg: "iniciar simulacion",
+          data: {
+            humidityThreshold: humidityThreshold,
+            pumpPower: pumpPower,
+            manualPump: manualPump,
+          },
+        })
+      );
+    } else {
+      // 🛑 Enviar detener simulación
+      socket?.send(
+        JSON.stringify({
+          type: "client-msg",
+          msg: "detener simulacion",
+          data: {
+            humidityThreshold: humidityThreshold,
+            pumpPower: pumpPower,
+            manualPump: false,
+          },
+        })
+      );
+    }
+    setSensorData({
+      ...sensorData,
+      pumpStatus: false,
+    });
 
+    console.log("🛑 Simulación detenida");
+  }, [isSimulating]);
 
   useEffect(() => {
     // 👇 Conéctate al servidor (usa wss si está en HTTPS)
@@ -154,7 +170,7 @@ useEffect(() => {
 
     ws.onopen = () => {
       console.log("✅ Conectado al servidor WebSocket");
-      if(ws.readyState === WebSocket.OPEN) {
+      if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: "identify", role: "react" }));
 
         console.log("📩 Mensaje enviado");
@@ -162,46 +178,47 @@ useEffect(() => {
     };
 
     ws.onmessage = (event) => {
-      
       try {
-      const data = JSON.parse(event.data);
+        const data = JSON.parse(event.data);
 
-      setMessages(prev => [...prev, data] as any);
-      console.log(historicalData)
-      console.log("📩 Datos recibidos del servidor:", data);
+        setMessages((prev) => [...prev, data] as any);
+        console.log(historicalData);
+        console.log("📩 Datos recibidos del servidor:", data);
 
-      // Actualizar sensorData directamente con lo que envía el servidor
-      const newData: SensorData = {
-        humidity: data.data.humidity,
-        temperature: sensorData.temperature,
-        light: sensorData.light,
-        waterConsumption: sensorData.waterConsumption,
-        pumpStatus: data.data.pumpStatus,
-        timestamp: new Date(),
-      };
-      setSensorData(newData);
-
-      // Guardar en historial
-      setHistoricalData((prevHistory) => {
-        const newHistoricalPoint: HistoricalData = {
-          time: newData.timestamp.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }),
-          humidity: newData.humidity,
-          temperature: newData.temperature,
-          light: newData.light,
-          waterConsumption: newData.waterConsumption,
-          pumpStatus: newData.pumpStatus ? true : false,
-          timestamp: newData.timestamp,
+        // Actualizar sensorData directamente con lo que envía el servidor
+        const newData: SensorData = {
+          humidity: data.data.humidity,
+          temperature: sensorData.temperature,
+          light: sensorData.light,
+          waterConsumption: sensorData.waterConsumption,
+          pumpStatus: data.data.pumpStatus,
+          timestamp: new Date(),
         };
+        setSensorData(newData);
 
-        const updated = [...prevHistory, newHistoricalPoint];
-        console.log(historicalData)
-        console.log(updated)
-        return updated.slice(-24); // mantener los últimos 24 puntos
-      });
+        // Guardar en historial
+        setHistoricalData((prevHistory) => {
+          const newHistoricalPoint: HistoricalData = {
+            time: newData.timestamp.toLocaleTimeString("es-ES", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            humidity: newData.humidity,
+            temperature: newData.temperature,
+            light: newData.light,
+            waterConsumption: newData.waterConsumption,
+            pumpStatus: newData.pumpStatus ? true : false,
+            timestamp: newData.timestamp,
+          };
 
-    } catch (err) {
-      console.error("⚠️ Error parseando mensaje:", err);
-    }
+          const updated = [...prevHistory, newHistoricalPoint];
+          console.log(historicalData);
+          console.log(updated);
+          return updated.slice(-24); // mantener los últimos 24 puntos
+        });
+      } catch (err) {
+        console.error("⚠️ Error parseando mensaje:", err);
+      }
     };
 
     ws.onclose = () => {
@@ -214,26 +231,35 @@ useEffect(() => {
 
     // Guardamos el socket para poder usarlo en botones/envíos
     setSocket(ws);
-
-    
   }, []);
   // Simular consumo de agua según el tiempo encendida y la potencia
 
-
-
   const getStatusColor = (value: number, optimal: [number, number]) => {
-    if (value >= optimal[0] && value <= optimal[1]) return "text-green-500"
-    if (value < optimal[0] * 0.8 || value > optimal[1] * 1.2) return "text-red-500"
-    return "text-yellow-500"
-  }
+    if (value >= optimal[0] && value <= optimal[1]) return "text-green-500";
+    if (value < optimal[0] * 0.8 || value > optimal[1] * 1.2)
+      return "text-red-500";
+    return "text-yellow-500";
+  };
 
   const getStatusBadge = (value: number, optimal: [number, number]) => {
     if (value >= optimal[0] && value <= optimal[1])
-      return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Óptimo</Badge>
+      return (
+        <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+          Óptimo
+        </Badge>
+      );
     if (value < optimal[0] * 0.8 || value > optimal[1] * 1.2)
-      return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Crítico</Badge>
-    return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">Advertencia</Badge>
-  }
+      return (
+        <Badge className="bg-red-500/20 text-red-400 border-red-500/30">
+          Crítico
+        </Badge>
+      );
+    return (
+      <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
+        Advertencia
+      </Badge>
+    );
+  };
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -242,19 +268,45 @@ useEffect(() => {
           <p className="text-sm font-medium mb-2">{`Hora: ${label}`}</p>
           {payload.map((entry: any, index: number) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
-              {`${entry.name}: ${entry.value}${entry.name === "Humedad" ? "%" : entry.name === "Temperatura" ? "°C" : entry.name === "Luz" ? " lux" : entry.name === "Agua" ? "L" : ""}`}
+              {`${entry.name}: ${entry.value}${
+                entry.name === "Humedad"
+                  ? "%"
+                  : entry.name === "Temperatura"
+                  ? "°C"
+                  : entry.name === "Luz"
+                  ? " lux"
+                  : entry.name === "Agua"
+                  ? "L"
+                  : ""
+              }`}
             </p>
           ))}
         </div>
-      )
+      );
     }
-    return null
-  }
+    return null;
+  };
 
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <div className="relative overflow-hidden bg-gradient-to-br from-primary/10 via-background to-accent/5">
+        {/* 🔹 Botón de cambio de tema */}
+        <div className="absolute top-4 right-4 z-10">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+            className="rounded-full"
+          >
+            {theme === "light" ? (
+              <Moon className="h-5 w-5" />
+            ) : (
+              <Sun className="h-5 w-5" />
+            )}
+          </Button>
+        </div>
+
         <div className="absolute inset-0 bg-grid-white/[0.02] bg-[size:50px_50px]" />
         <div className="relative">
           <div className="container mx-auto px-4 py-16 text-center">
@@ -265,7 +317,8 @@ useEffect(() => {
               </h1>
             </div>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto text-balance">
-              Sistema de riego inteligente con monitoreo en tiempo real usando ESP32 y sensores IoT
+              Sistema de riego inteligente con monitoreo en tiempo real usando
+              ESP32 y sensores IoT
             </p>
             <div className="flex items-center justify-center gap-4 mb-12">
               <Badge variant="secondary" className="px-4 py-2">
@@ -285,49 +338,78 @@ useEffect(() => {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 ">
         <Tabs defaultValue="dashboard" className="space-y-6">
           <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-            <TabsTrigger value="controls">Controles</TabsTrigger>
-            <TabsTrigger value="simulation">Simulación</TabsTrigger>
-            <TabsTrigger value="history">Historial</TabsTrigger>
-            <TabsTrigger value="system">Sistema</TabsTrigger>
+            <TabsTrigger value="dashboard" className="hover:cursor-pointer">
+              Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="controls" className="hover:cursor-pointer">
+              Controles
+            </TabsTrigger>
+            <TabsTrigger value="simulation" className="hover:cursor-pointer">
+              Simulación
+            </TabsTrigger>
+            <TabsTrigger value="history" className="hover:cursor-pointer">
+              Historial
+            </TabsTrigger>
+            <TabsTrigger value="system" className="hover:cursor-pointer">
+              Sistema
+            </TabsTrigger>
           </TabsList>
 
           {/* Real-time Dashboard */}
           <TabsContent value="dashboard" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* Humidity Card */}
-<Card className="border-border/50 bg-card/50 backdrop-blur">
-  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-    <CardTitle className="text-sm font-medium">Humedad del Suelo</CardTitle>
-    <Droplets
-      className={`h-4 w-4 ${getStatusColor(sensorData.humidity, [40, 80])}`}
-    />
-  </CardHeader>
-  <CardContent>
-    <div className="text-2xl font-bold">
-      {sensorData.humidity}%
-    </div>
-    <div className="flex items-center justify-between mt-2">
-      <Progress value={sensorData.humidity} className="flex-1 mr-2" />
-      {getStatusBadge(sensorData.humidity, [40, 80])}
-    </div>
-  </CardContent>
-</Card>
-
+              <Card className="border-border/50 bg-card/50 backdrop-blur">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Humedad del Suelo
+                  </CardTitle>
+                  <Droplets
+                    className={`h-4 w-4 ${getStatusColor(
+                      sensorData.humidity,
+                      [40, 80]
+                    )}`}
+                  />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {sensorData.humidity}%
+                  </div>
+                  <div className="flex items-center justify-between mt-2">
+                    <Progress
+                      value={sensorData.humidity}
+                      className="flex-1 mr-2"
+                    />
+                    {getStatusBadge(sensorData.humidity, [40, 80])}
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* Temperature Card */}
               <Card className="border-border/50 bg-card/50 backdrop-blur">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Temperatura</CardTitle>
-                  <Thermometer className={`h-4 w-4 ${getStatusColor(sensorData.temperature, [18, 28])}`} />
+                  <CardTitle className="text-sm font-medium">
+                    Temperatura
+                  </CardTitle>
+                  <Thermometer
+                    className={`h-4 w-4 ${getStatusColor(
+                      sensorData.temperature,
+                      [18, 28]
+                    )}`}
+                  />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{sensorData.temperature.toFixed(1)}°C</div>
+                  <div className="text-2xl font-bold">
+                    {sensorData.temperature.toFixed(1)}°C
+                  </div>
                   <div className="flex items-center justify-between mt-2">
-                    <Progress value={(sensorData.temperature / 40) * 100} className="flex-1 mr-2" />
+                    <Progress
+                      value={(sensorData.temperature / 40) * 100}
+                      className="flex-1 mr-2"
+                    />
                     {getStatusBadge(sensorData.temperature, [18, 28])}
                   </div>
                 </CardContent>
@@ -336,14 +418,26 @@ useEffect(() => {
               {/* Light Card */}
               <Card className="border-border/50 bg-card/50 backdrop-blur">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Luz Ambiente</CardTitle>
-                  <Sun className={`h-4 w-4 ${getStatusColor(sensorData.light, [100,50])}`} />
+                  <CardTitle className="text-sm font-medium">
+                    Luz Ambiente
+                  </CardTitle>
+                  <Sun
+                    className={`h-4 w-4 ${getStatusColor(
+                      sensorData.light,
+                      [100, 50]
+                    )}`}
+                  />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{Math.round(sensorData.light)} lux</div>
+                  <div className="text-2xl font-bold">
+                    {Math.round(sensorData.light)} lux
+                  </div>
                   <div className="flex items-center justify-between mt-2">
-                    <Progress value={(sensorData.light/200 ) * 100} className="flex-1 mr-2" />
-                    {getStatusBadge(sensorData.light, [100,50])}
+                    <Progress
+                      value={(sensorData.light / 200) * 100}
+                      className="flex-1 mr-2"
+                    />
+                    {getStatusBadge(sensorData.light, [100, 50])}
                   </div>
                 </CardContent>
               </Card>
@@ -351,11 +445,15 @@ useEffect(() => {
               {/* Water Consumption Card */}
               <Card className="border-border/50 bg-card/50 backdrop-blur">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Consumo de Agua</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Consumo de Agua
+                  </CardTitle>
                   <Gauge className="h-4 w-4 text-blue-400" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{sensorData.waterConsumption.toFixed(1)}L</div>
+                  <div className="text-2xl font-bold">
+                    {sensorData.waterConsumption.toFixed(1)}L
+                  </div>
                   <div className="flex items-center justify-between mt-2">
                     <div className="text-xs text-muted-foreground">Hoy</div>
                     <Badge variant="outline" className="text-xs">
@@ -370,7 +468,11 @@ useEffect(() => {
             <Card className="border-border/50 bg-card/50 backdrop-blur">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Power className={`h-5 w-5 ${sensorData.pumpStatus ? "text-green-400" : "text-gray-400"}`} />
+                  <Power
+                    className={`h-5 w-5 ${
+                      sensorData.pumpStatus ? "text-green-400" : "text-gray-400"
+                    }`}
+                  />
                   Estado de la Bomba
                 </CardTitle>
               </CardHeader>
@@ -378,11 +480,19 @@ useEffect(() => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div
-                      className={`h-3 w-3 rounded-full ${sensorData.pumpStatus ? "bg-green-400 animate-pulse" : "bg-gray-400"}`}
+                      className={`h-3 w-3 rounded-full ${
+                        sensorData.pumpStatus
+                          ? "bg-green-400 animate-pulse"
+                          : "bg-gray-400"
+                      }`}
                     />
-                    <span className="text-lg font-medium">{sensorData.pumpStatus ? "ENCENDIDA" : "APAGADA"}</span>
+                    <span className="text-lg font-medium">
+                      {sensorData.pumpStatus ? "ENCENDIDA" : "APAGADA"}
+                    </span>
                   </div>
-                  <div className="text-sm text-muted-foreground">Potencia: {pumpPower[0]}%</div>
+                  <div className="text-sm text-muted-foreground">
+                    Potencia: {pumpPower[0]}%
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -397,22 +507,39 @@ useEffect(() => {
                     <Settings className="h-5 w-5" />
                     Control Manual
                   </CardTitle>
-                  <CardDescription>Controla la bomba y ajusta los parámetros del sistema</CardDescription>
+                  <CardDescription>
+                    Controla la bomba y ajusta los parámetros del sistema
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-medium">Bomba Manual</label>
-                    <Switch checked={manualPump} onCheckedChange={setManualPump} />
+                    <Switch
+                      checked={manualPump}
+                      onCheckedChange={setManualPump}
+                    />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Potencia del Motor (PWM)</label>
-                    <Slider value={pumpPower} onValueChange={setPumpPower} max={100} step={1} className="w-full" />
-                    <div className="text-xs text-muted-foreground">Potencia: {pumpPower[0]}%</div>
+                    <label className="text-sm font-medium">
+                      Potencia del Motor (PWM)
+                    </label>
+                    <Slider
+                      value={pumpPower}
+                      onValueChange={setPumpPower}
+                      max={100}
+                      step={1}
+                      className="w-full"
+                    />
+                    <div className="text-xs text-muted-foreground">
+                      Potencia: {pumpPower[0]}%
+                    </div>
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Umbral de Humedad</label>
+                    <label className="text-sm font-medium">
+                      Umbral de Humedad
+                    </label>
                     <Slider
                       value={humidityThreshold}
                       onValueChange={setHumidityThreshold}
@@ -430,16 +557,22 @@ useEffect(() => {
               <Card>
                 <CardHeader>
                   <CardTitle>Estado del Sistema</CardTitle>
-                  <CardDescription>Información en tiempo real del sistema de riego</CardDescription>
+                  <CardDescription>
+                    Información en tiempo real del sistema de riego
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-sm">Conexión ESP32</span>
-                    <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Conectado</Badge>
+                    <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                      Conectado
+                    </Badge>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm">Última actualización</span>
-                    <span className="text-xs text-muted-foreground">{sensorData.timestamp.toLocaleTimeString()}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {sensorData.timestamp.toLocaleTimeString()}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm">Modo automático</span>
@@ -460,7 +593,9 @@ useEffect(() => {
                   <Play className="h-5 w-5" />
                   Simulación Interactiva
                 </CardTitle>
-                <CardDescription>Simula el comportamiento del sistema de riego en tiempo real</CardDescription>
+                <CardDescription>
+                  Simula el comportamiento del sistema de riego en tiempo real
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-4 mb-6">
@@ -492,10 +627,17 @@ useEffect(() => {
                   <div className="bg-muted/50 rounded-lg p-4">
                     <h4 className="font-medium mb-2">Proceso de Simulación:</h4>
                     <div className="text-sm text-muted-foreground space-y-1">
-                      <p>• Los sensores generan datos realistas cada 2 segundos</p>
-                      <p>• La bomba se activa automáticamente cuando la humedad baja del umbral</p>
+                      <p>
+                        • Los sensores generan datos realistas cada 2 segundos
+                      </p>
+                      <p>
+                        • La bomba se activa automáticamente cuando la humedad
+                        baja del umbral
+                      </p>
                       <p>• El sistema simula el ciclo completo de riego</p>
-                      <p>• Los gráficos y métricas se actualizan en tiempo real</p>
+                      <p>
+                        • Los gráficos y métricas se actualizan en tiempo real
+                      </p>
                     </div>
                   </div>
                 )}
@@ -507,7 +649,9 @@ useEffect(() => {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-2xl font-bold">Historial y Estadísticas</h2>
-                <p className="text-muted-foreground">Análisis de datos históricos del sistema de riego</p>
+                <p className="text-muted-foreground">
+                  Análisis de datos históricos del sistema de riego
+                </p>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm">
@@ -535,9 +679,19 @@ useEffect(() => {
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
                     <LineChart data={historicalData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="hsl(var(--border))"
+                      />
+                      <XAxis
+                        dataKey="time"
+                        stroke="hsl(var(--muted-foreground))"
+                        fontSize={12}
+                      />
+                      <YAxis
+                        stroke="hsl(var(--muted-foreground))"
+                        fontSize={12}
+                      />
                       <Tooltip content={<CustomTooltip />} />
                       <Legend />
                       <Line
@@ -546,7 +700,11 @@ useEffect(() => {
                         stroke="hsl(var(--chart-1))"
                         strokeWidth={2}
                         name="Humedad"
-                        dot={{ fill: "hsl(var(--chart-1))", strokeWidth: 2, r: 4 }}
+                        dot={{
+                          fill: "hsl(var(--chart-1))",
+                          strokeWidth: 2,
+                          r: 4,
+                        }}
                       />
                       <Line
                         type="monotone"
@@ -554,7 +712,11 @@ useEffect(() => {
                         stroke="hsl(var(--chart-2))"
                         strokeWidth={2}
                         name="Temperatura"
-                        dot={{ fill: "hsl(var(--chart-2))", strokeWidth: 2, r: 4 }}
+                        dot={{
+                          fill: "hsl(var(--chart-2))",
+                          strokeWidth: 2,
+                          r: 4,
+                        }}
                       />
                     </LineChart>
                   </ResponsiveContainer>
@@ -573,9 +735,19 @@ useEffect(() => {
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
                     <LineChart data={historicalData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="hsl(var(--border))"
+                      />
+                      <XAxis
+                        dataKey="time"
+                        stroke="hsl(var(--muted-foreground))"
+                        fontSize={12}
+                      />
+                      <YAxis
+                        stroke="hsl(var(--muted-foreground))"
+                        fontSize={12}
+                      />
                       <Tooltip content={<CustomTooltip />} />
                       <Legend />
                       <Line
@@ -584,7 +756,11 @@ useEffect(() => {
                         stroke="hsl(var(--chart-3))"
                         strokeWidth={2}
                         name="Luz"
-                        dot={{ fill: "hsl(var(--chart-3))", strokeWidth: 2, r: 4 }}
+                        dot={{
+                          fill: "hsl(var(--chart-3))",
+                          strokeWidth: 2,
+                          r: 4,
+                        }}
                       />
                       <Line
                         type="monotone"
@@ -592,7 +768,11 @@ useEffect(() => {
                         stroke="hsl(var(--chart-4))"
                         strokeWidth={2}
                         name="Agua"
-                        dot={{ fill: "hsl(var(--chart-4))", strokeWidth: 2, r: 4 }}
+                        dot={{
+                          fill: "hsl(var(--chart-4))",
+                          strokeWidth: 2,
+                          r: 4,
+                        }}
                       />
                     </LineChart>
                   </ResponsiveContainer>
@@ -601,64 +781,78 @@ useEffect(() => {
 
               {/* Pump Activity Chart */}
               <Card className="lg:col-span-2">
-  <CardHeader>
-    <CardTitle className="flex items-center gap-2">
-      <Power className="h-5 w-5" />
-      Actividad de la Bomba
-    </CardTitle>
-    <CardDescription>Estado de la bomba a lo largo del tiempo</CardDescription>
-  </CardHeader>
-  <CardContent>
-    <ResponsiveContainer width="100%" height={200}>
-      <AreaChart
-        data={historicalData.map((d) => ({
-          ...d,
-          pumpStatusNumeric: d.pumpStatus ? 1 : 0, // 🔹 conversión aquí
-        }))}
-      >
-        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-        <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-        <YAxis
-          stroke="hsl(var(--muted-foreground))"
-          fontSize={12}
-          domain={[0, 1]}
-          tickFormatter={(value) => (value === 1 ? "ON" : "OFF")}
-        />
-        <Tooltip
-          content={({ active, payload, label }) => {
-            if (active && payload && payload.length) {
-              const pumpOn = payload[0].value === 1
-              return (
-                <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
-                  <p className="text-sm font-medium mb-2">{`Hora: ${label}`}</p>
-                  <p className="text-sm" style={{ color: payload[0].color }}>
-                    {`Bomba: ${pumpOn ? "ENCENDIDA" : "APAGADA"}`}
-                  </p>
-                </div>
-              )
-            }
-            return null
-          }}
-        />
-        <Area
-          type="stepAfter"
-          dataKey="pumpStatusNumeric" // 🔹 usamos el valor convertido
-          stroke="hsl(var(--chart-5))"
-          fill="hsl(var(--chart-5))"
-          fillOpacity={0.3}
-        />
-      </AreaChart>
-    </ResponsiveContainer>
-  </CardContent>
-</Card>
-
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Power className="h-5 w-5" />
+                    Actividad de la Bomba
+                  </CardTitle>
+                  <CardDescription>
+                    Estado de la bomba a lo largo del tiempo
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <AreaChart
+                      data={historicalData.map((d) => ({
+                        ...d,
+                        pumpStatusNumeric: d.pumpStatus ? 1 : 0, // 🔹 conversión aquí
+                      }))}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="hsl(var(--border))"
+                      />
+                      <XAxis
+                        dataKey="time"
+                        stroke="hsl(var(--muted-foreground))"
+                        fontSize={12}
+                      />
+                      <YAxis
+                        stroke="hsl(var(--muted-foreground))"
+                        fontSize={12}
+                        domain={[0, 1]}
+                        tickFormatter={(value) => (value === 1 ? "ON" : "OFF")}
+                      />
+                      <Tooltip
+                        content={({ active, payload, label }) => {
+                          if (active && payload && payload.length) {
+                            const pumpOn = payload[0].value === 1;
+                            return (
+                              <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
+                                <p className="text-sm font-medium mb-2">{`Hora: ${label}`}</p>
+                                <p
+                                  className="text-sm"
+                                  style={{ color: payload[0].color }}
+                                >
+                                  {`Bomba: ${pumpOn ? "ENCENDIDA" : "APAGADA"}`}
+                                </p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Area
+                        type="stepAfter"
+                        dataKey="pumpStatusNumeric" // 🔹 usamos el valor convertido
+                        stroke="hsl(var(--chart-5))"
+                        fill="hsl(var(--chart-5))"
+                        fillOpacity={0.3}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
             </div>
 
             {/* Data Table */}
             <Card>
               <CardHeader>
                 <CardTitle>Registro de Datos</CardTitle>
-                <CardDescription>Últimos registros del sistema ({historicalData.length} entradas)</CardDescription>
+                <CardDescription>
+                  Últimos registros del sistema ({historicalData.length}{" "}
+                  entradas)
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="rounded-md border max-h-96 overflow-auto">
@@ -683,26 +877,49 @@ useEffect(() => {
                               {record.timestamp.toLocaleString("es-ES")}
                             </TableCell>
                             <TableCell>
-                              <span className={getStatusColor(record.humidity, [40, 80])}>
+                              <span
+                                className={getStatusColor(
+                                  record.humidity,
+                                  [40, 80]
+                                )}
+                              >
                                 {record.humidity?.toFixed(1)}%
                               </span>
                             </TableCell>
                             <TableCell>
-                              <span className={getStatusColor(record.temperature, [18, 28])}>
+                              <span
+                                className={getStatusColor(
+                                  record.temperature,
+                                  [18, 28]
+                                )}
+                              >
                                 {record.temperature?.toFixed(1)}°C
                               </span>
                             </TableCell>
                             <TableCell>
-                              <span className={getStatusColor(record.light, [300, 800])}>
+                              <span
+                                className={getStatusColor(
+                                  record.light,
+                                  [300, 800]
+                                )}
+                              >
                                 {Math.round(record.light)} lux
                               </span>
                             </TableCell>
-                            <TableCell>{record.waterConsumption.toFixed(2)}L</TableCell>
+                            <TableCell>
+                              {record.waterConsumption.toFixed(2)}L
+                            </TableCell>
                             <TableCell>
                               <Badge
-                                variant={record.pumpStatus === true ? "default" : "secondary"}
+                                variant={
+                                  record.pumpStatus === true
+                                    ? "default"
+                                    : "secondary"
+                                }
                                 className={
-                                  record.pumpStatus ===  true ? "bg-green-500/20 text-green-400 border-green-500/30" : ""
+                                  record.pumpStatus === true
+                                    ? "bg-green-500/20 text-green-400 border-green-500/30"
+                                    : ""
                                 }
                               >
                                 {record.pumpStatus === true ? "ON" : "OFF"}
@@ -727,14 +944,18 @@ useEffect(() => {
                     <Zap className="h-5 w-5" />
                     Diagrama del Sistema IoT
                   </CardTitle>
-                  <CardDescription>Flujo de datos y control del sistema de riego inteligente</CardDescription>
+                  <CardDescription>
+                    Flujo de datos y control del sistema de riego inteligente
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="relative bg-gradient-to-br from-muted/30 to-muted/10 rounded-lg p-8 min-h-[400px]">
                     {/* Sensors Section */}
                     <div className="absolute top-4 left-4">
                       <div className="bg-card border-2 border-primary/30 rounded-lg p-4 shadow-lg">
-                        <h4 className="font-semibold text-sm mb-2 text-primary">Sensores</h4>
+                        <h4 className="font-semibold text-sm mb-2 text-primary">
+                          Sensores
+                        </h4>
                         <div className="space-y-2">
                           <div className="flex items-center gap-2 text-xs">
                             <Droplets className="h-3 w-3 text-blue-400" />
@@ -759,10 +980,16 @@ useEffect(() => {
                           <Zap className="h-6 w-6 text-accent" />
                         </div>
                         <h4 className="font-bold text-accent">ESP32</h4>
-                        <p className="text-xs text-muted-foreground mt-1">Controlador Principal</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Controlador Principal
+                        </p>
                         <div className="mt-2">
                           <Badge
-                            className={`text-xs ${sensorData.pumpStatus ? "bg-green-500/20 text-green-400 border-green-500/30" : "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
+                            className={`text-xs ${
+                              sensorData.pumpStatus
+                                ? "bg-green-500/20 text-green-400 border-green-500/30"
+                                : "bg-gray-500/20 text-gray-400 border-gray-500/30"
+                            }`}
                           >
                             {sensorData.pumpStatus ? "Procesando" : "En Espera"}
                           </Badge>
@@ -773,14 +1000,29 @@ useEffect(() => {
                     {/* Water Pump */}
                     <div className="absolute top-4 right-4">
                       <div className="bg-card border-2 border-blue-400/30 rounded-lg p-4 shadow-lg">
-                        <h4 className="font-semibold text-sm mb-2 text-blue-400">Bomba de Agua</h4>
+                        <h4 className="font-semibold text-sm mb-2 text-blue-400">
+                          Bomba de Agua
+                        </h4>
                         <div className="flex items-center gap-2">
-                          <Power className={`h-4 w-4 ${sensorData.pumpStatus ? "text-green-400" : "text-gray-400"}`} />
-                          <span className="text-xs">{sensorData.pumpStatus ? "ACTIVA" : "INACTIVA"}</span>
+                          <Power
+                            className={`h-4 w-4 ${
+                              sensorData.pumpStatus
+                                ? "text-green-400"
+                                : "text-gray-400"
+                            }`}
+                          />
+                          <span className="text-xs">
+                            {sensorData.pumpStatus ? "ACTIVA" : "INACTIVA"}
+                          </span>
                         </div>
                         <div className="mt-2">
-                          <Progress value={sensorData.pumpStatus ? pumpPower[0] : 0} className="h-2" />
-                          <span className="text-xs text-muted-foreground">PWM: {pumpPower[0]}%</span>
+                          <Progress
+                            value={sensorData.pumpStatus ? pumpPower[0] : 0}
+                            className="h-2"
+                          />
+                          <span className="text-xs text-muted-foreground">
+                            PWM: {pumpPower[0]}%
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -788,7 +1030,9 @@ useEffect(() => {
                     {/* Plant */}
                     <div className="absolute bottom-4 right-4">
                       <div className="bg-card border-2 border-green-400/30 rounded-lg p-4 shadow-lg">
-                        <h4 className="font-semibold text-sm mb-2 text-green-400">Planta</h4>
+                        <h4 className="font-semibold text-sm mb-2 text-green-400">
+                          Planta
+                        </h4>
                         <div className="flex items-center gap-2">
                           <Leaf className="h-4 w-4 text-green-400" />
                           <span className="text-xs">
@@ -796,13 +1040,18 @@ useEffect(() => {
                             {sensorData.humidity > 60
                               ? "Saludable"
                               : sensorData.humidity > 30
-                                ? "Necesita Agua"
-                                : "Crítico"}
+                              ? "Necesita Agua"
+                              : "Crítico"}
                           </span>
                         </div>
                         <div className="mt-2">
-                          <Progress value={sensorData.humidity} className="h-2" />
-                          <span className="text-xs text-muted-foreground">Humedad: {sensorData.humidity}%</span>
+                          <Progress
+                            value={sensorData.humidity}
+                            className="h-2"
+                          />
+                          <span className="text-xs text-muted-foreground">
+                            Humedad: {sensorData.humidity}%
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -810,19 +1059,27 @@ useEffect(() => {
                     {/* Web Interface */}
                     <div className="absolute bottom-4 left-4">
                       <div className="bg-card border-2 border-purple-400/30 rounded-lg p-4 shadow-lg">
-                        <h4 className="font-semibold text-sm mb-2 text-purple-400">Interfaz Web</h4>
+                        <h4 className="font-semibold text-sm mb-2 text-purple-400">
+                          Interfaz Web
+                        </h4>
                         <div className="flex items-center gap-2">
                           <Activity className="h-4 w-4 text-purple-400" />
-                          <span className="text-xs">Monitoreo en Tiempo Real</span>
+                          <span className="text-xs">
+                            Monitoreo en Tiempo Real
+                          </span>
                         </div>
                         <div className="mt-2 text-xs text-muted-foreground">
-                          Última actualización: {sensorData.timestamp.toLocaleTimeString()}
+                          Última actualización:{" "}
+                          {sensorData.timestamp.toLocaleTimeString()}
                         </div>
                       </div>
                     </div>
 
                     {/* Connection Lines */}
-                    <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
+                    <svg
+                      className="absolute inset-0 w-full h-full pointer-events-none"
+                      style={{ zIndex: 1 }}
+                    >
                       {/* Sensors to ESP32 */}
                       <line
                         x1="25%"
@@ -888,7 +1145,9 @@ useEffect(() => {
               <div className="space-y-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Componentes del Sistema</CardTitle>
+                    <CardTitle className="text-lg">
+                      Componentes del Sistema
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-3">
@@ -899,7 +1158,8 @@ useEffect(() => {
                         <div>
                           <h5 className="font-medium text-sm">Sensores IoT</h5>
                           <p className="text-xs text-muted-foreground">
-                            Monitorean humedad del suelo, temperatura ambiente y niveles de luz
+                            Monitorean humedad del suelo, temperatura ambiente y
+                            niveles de luz
                           </p>
                         </div>
                       </div>
@@ -911,7 +1171,8 @@ useEffect(() => {
                         <div>
                           <h5 className="font-medium text-sm">ESP32</h5>
                           <p className="text-xs text-muted-foreground">
-                            Microcontrolador que procesa datos y controla la bomba automáticamente
+                            Microcontrolador que procesa datos y controla la
+                            bomba automáticamente
                           </p>
                         </div>
                       </div>
@@ -923,7 +1184,8 @@ useEffect(() => {
                         <div>
                           <h5 className="font-medium text-sm">Bomba de Agua</h5>
                           <p className="text-xs text-muted-foreground">
-                            Sistema de riego controlado por PWM con activación automática
+                            Sistema de riego controlado por PWM con activación
+                            automática
                           </p>
                         </div>
                       </div>
@@ -935,7 +1197,8 @@ useEffect(() => {
                         <div>
                           <h5 className="font-medium text-sm">Interfaz Web</h5>
                           <p className="text-xs text-muted-foreground">
-                            Dashboard en tiempo real para monitoreo y control remoto
+                            Dashboard en tiempo real para monitoreo y control
+                            remoto
                           </p>
                         </div>
                       </div>
@@ -945,7 +1208,9 @@ useEffect(() => {
 
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Flujo de Operación</CardTitle>
+                    <CardTitle className="text-lg">
+                      Flujo de Operación
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3 text-sm">
@@ -985,14 +1250,18 @@ useEffect(() => {
 
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Eficiencia del Sistema</CardTitle>
+                    <CardTitle className="text-lg">
+                      Eficiencia del Sistema
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
                       <div>
                         <div className="flex justify-between text-sm mb-1">
                           <span>Ahorro de Agua</span>
-                          <span className="font-medium text-green-400">85%</span>
+                          <span className="font-medium text-green-400">
+                            85%
+                          </span>
                         </div>
                         <Progress value={85} className="h-2" />
                       </div>
@@ -1006,7 +1275,9 @@ useEffect(() => {
                       <div>
                         <div className="flex justify-between text-sm mb-1">
                           <span>Precisión de Sensores</span>
-                          <span className="font-medium text-purple-400">92%</span>
+                          <span className="font-medium text-purple-400">
+                            92%
+                          </span>
                         </div>
                         <Progress value={92} className="h-2" />
                       </div>
@@ -1019,50 +1290,135 @@ useEffect(() => {
             {/* Technical Specifications */}
             <Card>
               <CardHeader>
-                <CardTitle>Especificaciones Técnicas</CardTitle>
-                <CardDescription>Detalles técnicos del sistema Agricultura 4.0</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <Cpu className="h-5 w-5 text-primary" />
+                  Especificaciones Técnicas
+                </CardTitle>
+                <CardDescription>
+                  Detalles técnicos del sistema Agricultura 4.0
+                </CardDescription>
               </CardHeader>
+
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {/* Hardware */}
                   <div className="space-y-2">
-                    <h4 className="font-semibold text-sm text-primary">Hardware</h4>
+                    <h4 className="font-semibold text-sm text-primary flex items-center gap-2">
+                      <CircuitBoard className="h-4 w-4" /> Hardware
+                    </h4>
                     <ul className="text-xs text-muted-foreground space-y-1">
-                      <li>• ESP32 DevKit V1</li>
-                      <li>• Sensor de humedad del suelo</li>
-                      <li>• Sensor DHT22 (temp/humedad)</li>
-                      <li>• Fotoresistencia LDR</li>
-                      <li>• Bomba de agua 12V</li>
-                      <li>• Relé 5V</li>
+                      <li className="flex items-center gap-2">
+                        <Cpu className="h-3 w-3" /> ESP32
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Droplets className="h-3 w-3" /> Sensor de humedad
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Grid className="h-3 w-3" /> Protoboard
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Waves className="h-3 w-3" /> Bomba de agua 6V
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Zap className="h-3 w-3" /> Mosfet
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Minus className="h-3 w-3" /> Resistencias
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <BatteryFull className="h-3 w-3" /> Batería 6V
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Power className="h-3 w-3" /> Diodos
+                      </li>
                     </ul>
                   </div>
+
+                  {/* Conectividad */}
                   <div className="space-y-2">
-                    <h4 className="font-semibold text-sm text-accent">Conectividad</h4>
+                    <h4 className="font-semibold text-sm text-accent flex items-center gap-2">
+                      <Wifi className="h-4 w-4" /> Conectividad
+                    </h4>
                     <ul className="text-xs text-muted-foreground space-y-1">
-                      <li>• WiFi 802.11 b/g/n</li>
-                      <li>• Protocolo HTTP/HTTPS</li>
-                      <li>• WebSocket para tiempo real</li>
-                      <li>• API RESTful</li>
-                      <li>• OTA Updates</li>
+                      <li className="flex items-center gap-2">
+                        <Wifi className="h-3 w-3" /> WiFi
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Globe className="h-3 w-3" /> HTTP/HTTPS
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Server className="h-3 w-3" /> Servidor
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Activity className="h-3 w-3" /> WebSocket tiempo real
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Code2 className="h-3 w-3" /> API RESTful
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <UploadCloud className="h-3 w-3" /> OTA Updates
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Cloud className="h-3 w-3" /> Render
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Globe2 className="h-3 w-3" /> Vercel
+                      </li>
                     </ul>
                   </div>
+
+                  {/* Software */}
                   <div className="space-y-2">
-                    <h4 className="font-semibold text-sm text-blue-400">Software</h4>
+                    <h4 className="font-semibold text-sm text-blue-400 flex items-center gap-2">
+                      <Code className="h-4 w-4" /> Software
+                    </h4>
                     <ul className="text-xs text-muted-foreground space-y-1">
-                      <li>• Arduino IDE / PlatformIO</li>
-                      <li>• React + Next.js</li>
-                      <li>• Tailwind CSS</li>
-                      <li>• Recharts para gráficos</li>
-                      <li>• PWA compatible</li>
+                      <li className="flex items-center gap-2">
+                        <FileCode className="h-3 w-3" /> Arduino IDE / VSCode
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Layout className="h-3 w-3" /> React + Next.js
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Type className="h-3 w-3" /> TypeScript
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Server className="h-3 w-3" /> Express
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Paintbrush className="h-3 w-3" /> Tailwind CSS
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <BarChart3 className="h-3 w-3" /> Recharts
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Smartphone className="h-3 w-3" /> PWA compatible
+                      </li>
                     </ul>
                   </div>
+
+                  {/* Características */}
                   <div className="space-y-2">
-                    <h4 className="font-semibold text-sm text-green-400">Características</h4>
+                    <h4 className="font-semibold text-sm text-green-400 flex items-center gap-2">
+                      <Sparkles className="h-4 w-4" /> Características
+                    </h4>
                     <ul className="text-xs text-muted-foreground space-y-1">
-                      <li>• Riego automático inteligente</li>
-                      <li>• Control manual remoto</li>
-                      <li>• Historial de datos</li>
-                      <li>• Alertas en tiempo real</li>
-                      <li>• Modo simulación</li>
+                      <li className="flex items-center gap-2">
+                        <Droplet className="h-3 w-3" /> Riego automático
+                        inteligente
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Smartphone className="h-3 w-3" /> Control remoto
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <History className="h-3 w-3" /> Historial de datos
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Bell className="h-3 w-3" /> Alertas en tiempo real
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Cpu className="h-3 w-3" /> Modo simulación
+                      </li>
                     </ul>
                   </div>
                 </div>
@@ -1072,5 +1428,5 @@ useEffect(() => {
         </Tabs>
       </div>
     </div>
-  )
+  );
 }

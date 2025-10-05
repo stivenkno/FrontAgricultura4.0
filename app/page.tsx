@@ -38,6 +38,7 @@ import {
   Calendar,
 } from "lucide-react"
 import { set } from "date-fns"
+import { da } from "date-fns/locale"
 
 
 interface DataMessage {
@@ -95,6 +96,18 @@ export default function AgriculturaPage() {
   
   // Simulation logic
 useEffect(() => {
+
+  fetch("https://api.open-meteo.com/v1/forecast?latitude=4.5339&longitude=-75.6811&current=temperature_2m,cloudcover,shortwave_radiation")
+  .then(res => res.json())
+  .then(data => {
+    console.log("Temperatura:", data.current.temperature_2m, "°C");
+    sensorData.temperature = data.current.temperature_2m
+    console.log("Nubosidad:", data.current.cloudcover, "%");
+   
+    console.log("Radiación solar:", data.current.shortwave_radiation, "W/m²");
+     sensorData.light = data.current.shortwave_radiation
+  });
+
   if (isSimulating) {
     // ✅ Enviar iniciar simulación
     socket?.send(
@@ -114,9 +127,23 @@ useEffect(() => {
       JSON.stringify({
         type: "client-msg",
         msg: "detener simulacion",
+        data: {
+          humidityThreshold: humidityThreshold,
+          pumpPower: pumpPower,
+          manualPump: false,
+        },
       })
     )
+
+    
+    
   }
+  setSensorData({
+    ...sensorData,
+    pumpStatus:false
+  })
+ 
+  console.log("🛑 Simulación detenida");
 }, [isSimulating])
 
 
@@ -190,6 +217,9 @@ useEffect(() => {
 
     
   }, []);
+  // Simular consumo de agua según el tiempo encendida y la potencia
+
+
 
   const enviarMensaje = () => {
     if (socket && socket.readyState === WebSocket.OPEN) {
@@ -282,19 +312,24 @@ useEffect(() => {
           <TabsContent value="dashboard" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* Humidity Card */}
-              <Card className="border-border/50 bg-card/50 backdrop-blur">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Humedad del Suelo</CardTitle>
-                  <Droplets className={`h-4 w-4 ${getStatusColor(sensorData.humidity, [40, 80])}`} />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{sensorData.humidity}%</div>
-                  <div className="flex items-center justify-between mt-2">
-                    <Progress value={sensorData.humidity} className="flex-1 mr-2" />
-                    {getStatusBadge(sensorData.humidity, [40, 80])}
-                  </div>
-                </CardContent>
-              </Card>
+<Card className="border-border/50 bg-card/50 backdrop-blur">
+  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+    <CardTitle className="text-sm font-medium">Humedad del Suelo</CardTitle>
+    <Droplets
+      className={`h-4 w-4 ${getStatusColor(sensorData.humidity, [40, 80])}`}
+    />
+  </CardHeader>
+  <CardContent>
+    <div className="text-2xl font-bold">
+      {sensorData.humidity}%
+    </div>
+    <div className="flex items-center justify-between mt-2">
+      <Progress value={sensorData.humidity} className="flex-1 mr-2" />
+      {getStatusBadge(sensorData.humidity, [40, 80])}
+    </div>
+  </CardContent>
+</Card>
+
 
               {/* Temperature Card */}
               <Card className="border-border/50 bg-card/50 backdrop-blur">
@@ -315,13 +350,13 @@ useEffect(() => {
               <Card className="border-border/50 bg-card/50 backdrop-blur">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Luz Ambiente</CardTitle>
-                  <Sun className={`h-4 w-4 ${getStatusColor(sensorData.light, [300, 800])}`} />
+                  <Sun className={`h-4 w-4 ${getStatusColor(sensorData.light, [100,50])}`} />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{Math.round(sensorData.light)} lux</div>
                   <div className="flex items-center justify-between mt-2">
-                    <Progress value={(sensorData.light / 1000) * 100} className="flex-1 mr-2" />
-                    {getStatusBadge(sensorData.light, [300, 800])}
+                    <Progress value={(sensorData.light/200 ) * 100} className="flex-1 mr-2" />
+                    {getStatusBadge(sensorData.light, [100,50])}
                   </div>
                 </CardContent>
               </Card>
@@ -337,7 +372,7 @@ useEffect(() => {
                   <div className="flex items-center justify-between mt-2">
                     <div className="text-xs text-muted-foreground">Hoy</div>
                     <Badge variant="outline" className="text-xs">
-                      {sensorData.pumpStatus ? "Activa" : "Inactiva"}
+                      {sensorData.pumpStatus ? true : false}
                     </Badge>
                   </div>
                 </CardContent>
@@ -385,7 +420,7 @@ useEffect(() => {
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Potencia del Motor (PWM)</label>
-                    <Slider value={pumpPower} onValueChange={setPumpPower} max={100} step={5} className="w-full" />
+                    <Slider value={pumpPower} onValueChange={setPumpPower} max={100} step={1} className="w-full" />
                     <div className="text-xs text-muted-foreground">Potencia: {pumpPower[0]}%</div>
                   </div>
 
@@ -395,7 +430,7 @@ useEffect(() => {
                       value={humidityThreshold}
                       onValueChange={setHumidityThreshold}
                       max={100}
-                      step={5}
+                      step={1}
                       className="w-full"
                     />
                     <div className="text-xs text-muted-foreground">
@@ -579,50 +614,57 @@ useEffect(() => {
 
               {/* Pump Activity Chart */}
               <Card className="lg:col-span-2">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Power className="h-5 w-5" />
-                    Actividad de la Bomba
-                  </CardTitle>
-                  <CardDescription>Estado de la bomba a lo largo del tiempo</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <AreaChart data={historicalData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                      <YAxis
-                        stroke="hsl(var(--muted-foreground))"
-                        fontSize={12}
-                        domain={[0, 1]}
-                        tickFormatter={(value) => (value === 1 ? "ON" : "OFF")}
-                      />
-                      <Tooltip
-                        content={({ active, payload, label }) => {
-                          if (active && payload && payload.length) {
-                            return (
-                              <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
-                                <p className="text-sm font-medium mb-2">{`Hora: ${label}`}</p>
-                                <p className="text-sm" style={{ color: payload[0].color }}>
-                                  {`Bomba: ${payload[0].value === 1 ? "ENCENDIDA" : "APAGADA"}`}
-                                </p>
-                              </div>
-                            )
-                          }
-                          return null
-                        }}
-                      />
-                      <Area
-                        type="stepAfter"
-                        dataKey="pumpStatus"
-                        stroke="hsl(var(--chart-5))"
-                        fill="hsl(var(--chart-5))"
-                        fillOpacity={0.3}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+  <CardHeader>
+    <CardTitle className="flex items-center gap-2">
+      <Power className="h-5 w-5" />
+      Actividad de la Bomba
+    </CardTitle>
+    <CardDescription>Estado de la bomba a lo largo del tiempo</CardDescription>
+  </CardHeader>
+  <CardContent>
+    <ResponsiveContainer width="100%" height={200}>
+      <AreaChart
+        data={historicalData.map((d) => ({
+          ...d,
+          pumpStatusNumeric: d.pumpStatus ? 1 : 0, // 🔹 conversión aquí
+        }))}
+      >
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+        <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+        <YAxis
+          stroke="hsl(var(--muted-foreground))"
+          fontSize={12}
+          domain={[0, 1]}
+          tickFormatter={(value) => (value === 1 ? "ON" : "OFF")}
+        />
+        <Tooltip
+          content={({ active, payload, label }) => {
+            if (active && payload && payload.length) {
+              const pumpOn = payload[0].value === 1
+              return (
+                <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
+                  <p className="text-sm font-medium mb-2">{`Hora: ${label}`}</p>
+                  <p className="text-sm" style={{ color: payload[0].color }}>
+                    {`Bomba: ${pumpOn ? "ENCENDIDA" : "APAGADA"}`}
+                  </p>
+                </div>
+              )
+            }
+            return null
+          }}
+        />
+        <Area
+          type="stepAfter"
+          dataKey="pumpStatusNumeric" // 🔹 usamos el valor convertido
+          stroke="hsl(var(--chart-5))"
+          fill="hsl(var(--chart-5))"
+          fillOpacity={0.3}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
+  </CardContent>
+</Card>
+
             </div>
 
             {/* Data Table */}

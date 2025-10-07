@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 
 export const metadata: Metadata = {
   title: "Agricultura 4.0 - Sistema de Riego Inteligente",
+  
   description: "Sistema de monitoreo y control automático de riego con ESP32 y sensores IoT",
   generator: "v0.app",
 }

@@ -338,9 +338,9 @@ export default function AgriculturaPage() {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 ">
+      <div className="container mx-auto px-4 sticky top-0  ">
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="sticky top-0 z-50  grid w-full grid-cols-5">
             <TabsTrigger value="dashboard" className="hover:cursor-pointer">
               Dashboard
             </TabsTrigger>
@@ -1077,8 +1077,8 @@ export default function AgriculturaPage() {
 
                     {/* Connection Lines */}
                     <svg
-                      className="absolute inset-0 w-full h-full pointer-events-none"
-                      style={{ zIndex: 1 }}
+                      className="absolute inset-0 w-full h-full pointer-events-none z-50"
+                      style={{ zIndex: 40 }}
                     >
                       {/* Sensors to ESP32 */}
                       <line
